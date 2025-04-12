@@ -11,6 +11,11 @@
 
 </canvas>
 
+<canvas id="c" width="512" height="512">
+
+</canvas>
+<button type="button" onclick="main()">Regenerate</button>
+
 <script>
     const CANVAS_WIDTH = 513;
     const CANVAS_HEIGHT = 513;
@@ -22,8 +27,8 @@
     const w = 513;
     const h = 513;
     // Randomness.
-    const initialRoughness = 0.5; // Amplitude of the first random offset (adjust for overall height variation)
-    const roughnessDecay = 0.5; // Factor to reduce roughness each step (0.5 is common, lower values -> smoother terrain)
+    const initialRoughness = 0.4; // Amplitude of the first random offset (adjust for overall height variation)
+    const roughnessDecay = 0.4; // Factor to reduce roughness each step (0.5 is common, lower values -> smoother terrain)
 
 
     function initGrid(grid) {
@@ -72,8 +77,7 @@
         }
         if (count > 0) {
             const randomOffset = (Math.random() * 2 - 1) * currentRoughness;
-            grid[x][y] = (sum / count) + randomOffset;
-            grid[x][y] = Math.max(0, grid[x][y]);
+            grid[x][y] = Math.max(0, Math.min(1, (sum / count) + randomOffset));
         }
     }
 
@@ -90,8 +94,7 @@
         // Diamond step. Set the mid point to the average.
         if (grid[mid_x][mid_y] === 0) {
             let randomOffset = (Math.random() * 2 - 1) * currentRoughness;
-            grid[mid_x][mid_y] = midpointAvg + randomOffset;
-            grid[mid_x][mid_y] = Math.max(0, grid[mid_x][mid_y]);
+            grid[mid_x][mid_y] = Math.max(0,  Math.min(1, midpointAvg + randomOffset));
         }
 
         // Square step (setting 4 values).
@@ -107,6 +110,23 @@
         diamondSquare(grid, x1, mid_x, mid_y, y2, nextRoughness, roughnessDecay);
         diamondSquare(grid, mid_x, x2, y1, mid_y, nextRoughness, roughnessDecay);
         diamondSquare(grid, mid_x, x2, mid_y, y2, nextRoughness, roughnessDecay);
+    }
+
+    function normalizeGridValues(grid) {
+        let min = 100000;
+        let max = -100000;
+        for (let i = 0; i < grid.length; i++) {
+            for(let j = 0; j < grid[i].length; j++) {
+                min = Math.min(min, grid[i][j]);
+                max = Math.max(max, grid[i][j]);
+            }
+        }
+
+        for(let i = 0; i < grid.length; i++) {
+            for(let j = 0; j < grid[i].length; j++) {
+                grid[i][j] = (grid[i][j] - min) / (max - min);
+            }
+        }
     }
 
     function fillImageData(grid, imageData) {
@@ -125,15 +145,21 @@
         }
     }
 
-    let grid = [];
-    initGrid(grid);
-    initCorners(grid);
+    // Main function.
+    function main() {
+        let grid = [];
+        initGrid(grid);
+        initCorners(grid);
 
-    diamondSquare(grid, 0, h-1, 0, w-1, initialRoughness, roughnessDecay);
+        diamondSquare(grid, 0, h-1, 0, w-1, initialRoughness, roughnessDecay);
+        normalizeGridValues(grid);
 
-    let imageData = ctx.createImageData(CANVAS_WIDTH, CANVAS_HEIGHT);
-    fillImageData(grid, imageData);
-    ctx.putImageData(imageData, 0, 0);
+        let imageData = ctx.createImageData(CANVAS_WIDTH, CANVAS_HEIGHT);
+        fillImageData(grid, imageData);
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+    main();  // Call once on render.
 
 
 </script>
