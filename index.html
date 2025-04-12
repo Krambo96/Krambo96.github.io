@@ -2,13 +2,143 @@
 <html>
 <head>
 	<title>
-		Yokozuna.
+		Troy's website.
 	</title>
 </head>
 <body>
 	
  <h2> Troy's Website </h2>
 
- <h2> This is a test </h2>
+ 
+<canvas id="c" width="512" height="512">
+
+</canvas>
+
+<script>
+    const CANVAS_WIDTH = 513;
+    const CANVAS_HEIGHT = 513;
+    // Canvas.
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+
+    // 'grid' should be 257x257.
+    const w = 513;
+    const h = 513;
+    // Randomness.
+    const initialRoughness = 0.5; // Amplitude of the first random offset (adjust for overall height variation)
+    const roughnessDecay = 0.5; // Factor to reduce roughness each step (0.5 is common, lower values -> smoother terrain)
+
+
+    function initGrid(grid) {
+        for(let i = 0; i < h; i++) {
+            grid[i] = [];
+            for (let j = 0; j < w; j++) {
+                grid[i][j] = 0;
+            }
+        }
+    }
+
+    // Initializes the four corners to a value between 0.0 and 1.0
+    function initCorners(grid) {
+        grid[0][0] = Math.random();
+        grid[0][w-1] = Math.random();
+        grid[h-1][0] = Math.random();
+        grid[h-1][w-1] = Math.random();
+    }
+
+    function getValue(grid, x, y, h, w) {
+        if (x >= 0 && x < h && y >= 0 && y < w) {
+            return grid[x][y];
+        }
+        return null;
+    }
+
+    function setSquares(grid, x, y, half, currentRoughness) {
+        if (grid[x][y] !== 0) {
+            return;
+        }
+
+        let sum = 0;
+        let count = 0;
+        // Get the average of all four neighbors (if they exist, edge points will only have 3.
+        const neighbors = [
+            getValue(grid, x - half, y, h, w),
+            getValue(grid, x + half, y, h, w),
+            getValue(grid, x, y - half, h, w),
+            getValue(grid, x, y + half, h, w)
+        ];
+        for (const val of neighbors) {
+            if (val !== null) {
+                sum += val;
+                ++count;
+            }
+        }
+        if (count > 0) {
+            const randomOffset = (Math.random() * 2 - 1) * currentRoughness;
+            grid[x][y] = (sum / count) + randomOffset;
+            grid[x][y] = Math.max(0, grid[x][y]);
+        }
+    }
+
+    // Performs diamond-square algorithm recursively: https://en.wikipedia.org/wiki/Diamond-square_algorithm
+    function diamondSquare(grid, x1, x2, y1, y2, currentRoughness, roughnessDecay) {
+        if ((x1+1 === x2)) {
+            // At a 2x2, no more work needed.
+            return;
+        }
+        let midpointAvg = (grid[x1][y1] + grid[x1][y2] + grid[x2][y1] + grid[x2][y2]) / 4;
+        // Get the mid point of this current square we're in.
+        let mid_x = Math.floor((x1 + x2) / 2);
+        let mid_y = Math.floor((y1 + y2) / 2);
+        // Diamond step. Set the mid point to the average.
+        if (grid[mid_x][mid_y] === 0) {
+            let randomOffset = (Math.random() * 2 - 1) * currentRoughness;
+            grid[mid_x][mid_y] = midpointAvg + randomOffset;
+            grid[mid_x][mid_y] = Math.max(0, grid[mid_x][mid_y]);
+        }
+
+        // Square step (setting 4 values).
+        let half = (x2 - x1) / 2;
+        setSquares(grid, x1, mid_y, half, currentRoughness);
+        setSquares(grid, mid_x, y2, half, currentRoughness);
+        setSquares(grid, x2, mid_y, half, currentRoughness);
+        setSquares(grid, mid_x, y1, half, currentRoughness);
+
+        // Recurse to all four sub-squares.
+        const nextRoughness = currentRoughness * roughnessDecay;
+        diamondSquare(grid, x1, mid_x, y1, mid_y, nextRoughness, roughnessDecay);
+        diamondSquare(grid, x1, mid_x, mid_y, y2, nextRoughness, roughnessDecay);
+        diamondSquare(grid, mid_x, x2, y1, mid_y, nextRoughness, roughnessDecay);
+        diamondSquare(grid, mid_x, x2, mid_y, y2, nextRoughness, roughnessDecay);
+    }
+
+    function fillImageData(grid, imageData) {
+        let imageDataIdx = 0;
+        for(let i = 0; i < grid.length; i++) {
+            for (let j = 0; j < grid[0].length; j++) {
+                // Convert the value in grid[i][j] to a greyscale color value.
+                let colorValue = 255 * grid[i][j];  // Take a % of the color value, black becomes 0.
+                imageData.data[imageDataIdx] = colorValue;
+                imageData.data[imageDataIdx + 1] = colorValue;
+                imageData.data[imageDataIdx + 2] = colorValue;
+                imageData.data[imageDataIdx + 3] = 255;
+                // imageData.data[imageDataIdx + 3] = colorValue;
+                imageDataIdx += 4;
+            }
+        }
+    }
+
+    let grid = [];
+    initGrid(grid);
+    initCorners(grid);
+
+    diamondSquare(grid, 0, h-1, 0, w-1, initialRoughness, roughnessDecay);
+
+    let imageData = ctx.createImageData(CANVAS_WIDTH, CANVAS_HEIGHT);
+    fillImageData(grid, imageData);
+    ctx.putImageData(imageData, 0, 0);
+
+
+</script>
 </body>
 </html>
